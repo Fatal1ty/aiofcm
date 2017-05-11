@@ -23,6 +23,7 @@ setup(
     license='Apache License, Version 2.0',
     author='Alexander Tikhonov',
     author_email='random.gauss@gmail.com',
+    url='https://github.com/Fatal1ty/aiofcm',
     packages=find_packages(exclude=('tests',)),
     install_requires=[
         'aioxmpp',
