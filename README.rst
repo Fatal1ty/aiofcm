@@ -7,6 +7,12 @@ aiofcm - An efficient Firebase Cloud Messaging Client Library for Python/asyncio
 .. image:: https://img.shields.io/pypi/v/aiofcm.svg
     :target: https://pypi.python.org/pypi/aiofcm
 
+.. image:: https://img.shields.io/pypi/pyversions/aiofcm.svg
+    :target: https://pypi.python.org/pypi/aiofcm/
+
+.. image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+    :target: https://opensource.org/licenses/Apache-2.0
+
 **aiofcm** is a library designed specifically for sending push-notifications to Android devices
 via Firebase Cloud Messaging platform. aiofcm provides an efficient client through
 asynchronous XMPP protocol for use with Python's ``asyncio``
