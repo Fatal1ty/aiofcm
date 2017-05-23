@@ -9,8 +9,9 @@ class FCM:
     async def send_notification(self, request):
         response = await self.pool.send_notification(request)
         if not response.is_successful:
-            logger.error(
-                'Status of notification %s is %s (%s)',
-                request.notification_id, response.status, response.description
-            )
+            msg = 'Status of notification %s is %s' %\
+                  (request.notification_id, response.status.upper())
+            if response.description:
+                msg += ' (%s)' % response.description
+            logger.error(msg)
         return response

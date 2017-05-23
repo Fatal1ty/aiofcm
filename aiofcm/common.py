@@ -26,4 +26,4 @@ class NotificationResult:
 
 
 class NotificationStatus:
-    SUCCESS = 'success'
+    SUCCESS = 'SUCCESS'
