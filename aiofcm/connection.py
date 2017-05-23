@@ -4,6 +4,7 @@ import asyncio
 import aioxmpp
 import aioxmpp.connector
 import aioxmpp.xso
+import OpenSSL
 
 from aiofcm.logging import logger
 from aiofcm.common import NotificationResult, NotificationStatus
@@ -70,7 +71,7 @@ class FCMXMPPConnection:
 
     def _on_stream_destroyed(self, reason=None):
         reason = reason or ConnectionClosed()
-        logger.warning('Stream of %s destroyed: %s', self, reason)
+        logger.debug('Stream of %s destroyed: %s', self, reason)
         self.xmpp_client.stop()
 
         if self.inactivity_timer:
@@ -166,6 +167,8 @@ class FCMConnectionPool:
         self.connections = []
         self._lock = asyncio.Lock()
 
+        self.loop.set_exception_handler(self.exception_handler)
+
     async def connect(self):
         connection = FCMXMPPConnection(
             sender_id=self.sender_id,
@@ -233,3 +236,9 @@ class FCMConnectionPool:
             except Exception as e:
                 logger.error('Could not send notification %s: %s',
                              request.notification_id, e)
+
+    def exception_handler(self, _, context):
+        exc = context.get('exception')
+        # See https://github.com/horazont/aioopenssl/issues/2
+        if not isinstance(exc, OpenSSL.SSL.SysCallError):
+            logger.exception(exc)
