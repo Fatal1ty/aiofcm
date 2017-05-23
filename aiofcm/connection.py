@@ -110,7 +110,7 @@ class FCMXMPPConnection:
                 notification_id, NotificationStatus.SUCCESS)
             request.set_result(result)
         elif message_type == FCMMessageType.NACK:
-            status = body['error'].lower()
+            status = body['error']
             description = body['error_description']
             result = NotificationResult(notification_id, status, description)
             request.set_result(result)
