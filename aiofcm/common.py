@@ -20,6 +20,19 @@ class Message:
         self.message_id = message_id or str(uuid4())
         self.time_to_live = time_to_live
 
+    def as_dict(self):
+        result = dict(
+            message_id=self.message_id,
+            to=self.device_token,
+        )
+
+        for field in ('notification', 'data', 'priority', 'time_to_live'):
+            value = getattr(self, field, None)
+            if value is not None:
+                result[field] = value
+
+        return result
+
 
 class MessageResponse:
     __slots__ = ('message_id', 'status', 'description')
