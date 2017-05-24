@@ -121,13 +121,7 @@ class FCMXMPPConnection:
         )
         payload = FCMMessage()
 
-        payload_body = dict(
-            message_id=request.notification_id,
-            to=request.device_token,
-            notification=request.message,
-        )
-        if request.time_to_live is not None:
-            payload_body['time_to_live'] = request.time_to_live
+        payload_body = request.as_dict()
 
         payload.text = json.dumps(payload_body)
         msg.fcm_payload = payload
