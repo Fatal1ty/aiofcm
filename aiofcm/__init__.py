@@ -1,5 +1,5 @@
 from aiofcm.client import FCM
-from aiofcm.common import NotificationRequest
+from aiofcm.common import Message, PRIORITY_NORMAL, PRIORITY_HIGH
 
 
-__all__ = ['FCM', 'NotificationRequest']
+__all__ = ['FCM', 'Message', 'PRIORITY_NORMAL', 'PRIORITY_HIGH']
