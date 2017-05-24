@@ -7,7 +7,7 @@ import aioxmpp.xso
 import OpenSSL
 
 from aiofcm.logging import logger
-from aiofcm.common import NotificationResult, NotificationStatus
+from aiofcm.common import MessageResponse, STATUS_SUCCESS
 from aiofcm.exceptions import ConnectionClosed
 
 
@@ -90,7 +90,7 @@ class FCMXMPPConnection:
         body = json.loads(message.fcm_payload.text)
 
         try:
-            notification_id = body['message_id']
+            message_id = body['message_id']
             message_type = body['message_type']
         except KeyError:
             logger.warning('Got strange response: %s', body)
@@ -99,47 +99,50 @@ class FCMXMPPConnection:
         if message_type not in (FCMMessageType.ACK, FCMMessageType.NACK):
             return
 
-        request = self.requests.pop(notification_id, None)
+        request = self.requests.pop(message_id, None)
         if not request:
-            logger.warning('Got response for unknown notification request %s',
-                           notification_id)
+            logger.warning('Got response for unknown message %s', message_id)
             return
 
         if message_type == FCMMessageType.ACK:
-            result = NotificationResult(
-                notification_id, NotificationStatus.SUCCESS)
+            result = MessageResponse(message_id, STATUS_SUCCESS)
             request.set_result(result)
         elif message_type == FCMMessageType.NACK:
             status = body['error']
             description = body['error_description']
-            result = NotificationResult(notification_id, status, description)
+            result = MessageResponse(message_id, status, description)
             request.set_result(result)
 
-    async def send_notification(self, request):
+    async def send_message(self, message):
         msg = aioxmpp.Message(
             type_=aioxmpp.MessageType.NORMAL
         )
         payload = FCMMessage()
 
         payload_body = dict(
-            message_id=request.notification_id,
-            to=request.device_token,
-            notification=request.message,
+            message_id=message.message_id,
+            to=message.device_token,
         )
-        if request.time_to_live is not None:
-            payload_body['time_to_live'] = request.time_to_live
+        if message.notification:
+            payload_body['notification'] = message.notification
+        if message.data:
+            payload_body['data'] = message.data
+        if message.priority:
+            payload_body['priority'] = message.priority
+        if message.time_to_live is not None:
+            payload_body['time_to_live'] = message.time_to_live
 
         payload.text = json.dumps(payload_body)
         msg.fcm_payload = payload
 
         future_response = asyncio.Future()
-        self.requests[request.notification_id] = future_response
+        self.requests[message.message_id] = future_response
 
         self.refresh_inactivity_timer()
         try:
             await self.xmpp_client.stream.send(msg)
         except:
-            self.requests.pop(request.notification_id)
+            self.requests.pop(message.message_id)
             raise
 
         response = await future_response
@@ -215,27 +218,27 @@ class FCMConnectionPool:
                         if not connection.is_busy:
                             return connection
 
-    async def send_notification(self, request):
+    async def send_message(self, message):
         attempt = 0
         while True:
             attempt += 1
             if attempt > self.MAX_ATTEMPTS:
-                logger.warning('Trying to send notification %s: attempt #%s',
-                               request.notification_id, attempt)
-            logger.debug('Notification %s: waiting for connection',
-                         request.notification_id)
+                logger.warning('Trying to send message %s: attempt #%s',
+                               message.message_id, attempt)
+            logger.debug('Message %s: waiting for connection',
+                         message.message_id)
             connection = await self.acquire()
-            logger.debug('Notification %s: connection %s acquired',
-                         request.notification_id, connection)
+            logger.debug('Message %s: connection %s acquired',
+                         message.message_id, connection)
             try:
-                response = await connection.send_notification(request)
+                response = await connection.send_message(message)
                 return response
             except ConnectionClosed:
-                logger.warning('Could not send notification %s: '
-                               'ConnectionClosed', request.notification_id)
+                logger.warning('Could not send message %s: '
+                               'ConnectionClosed', message.message_id)
             except Exception as e:
-                logger.error('Could not send notification %s: %s',
-                             request.notification_id, e)
+                logger.error('Could not send message %s: %s',
+                             message.message_id, e)
 
     def exception_handler(self, _, context):
         exc = context.get('exception')
