@@ -34,6 +34,7 @@ Features
 * Sending notification and/or data messages
 * Ability to set TTL (time to live) for messages
 * Ability to set priority for messages
+* Ability to set collapse_key for messages
 
 
 Installation
