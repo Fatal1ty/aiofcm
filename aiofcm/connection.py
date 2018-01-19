@@ -173,6 +173,10 @@ class FCMConnectionPool:
                     len(self.connections) + 1)
         return connection
 
+    def close(self):
+        for connection in self.connections:
+            connection.close()
+
     async def create_connection(self):
         connection = await self.connect()
         self.connections.append(connection)
