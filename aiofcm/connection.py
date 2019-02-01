@@ -4,7 +4,6 @@ import asyncio
 import aioxmpp
 import aioxmpp.connector
 import aioxmpp.xso
-import OpenSSL
 
 from aiofcm.logging import logger
 from aiofcm.common import MessageResponse, STATUS_SUCCESS
@@ -14,6 +13,8 @@ from aiofcm.exceptions import ConnectionClosed
 class FCMMessage(aioxmpp.xso.XSO):
     TAG = ('google:mobile:data', 'gcm')
     text = aioxmpp.xso.Text(default=None)
+
+
 aioxmpp.stanza.Message.fcm_payload = aioxmpp.xso.Child([FCMMessage])
 
 
@@ -130,7 +131,7 @@ class FCMXMPPConnection:
         self.refresh_inactivity_timer()
         try:
             await self.xmpp_client.stream.send(msg)
-        except:
+        except Exception:
             self.requests.pop(message.message_id)
             raise
 
@@ -158,8 +159,6 @@ class FCMConnectionPool:
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
         self._lock = asyncio.Lock(loop=self.loop)
-
-        self.loop.set_exception_handler(self.exception_handler)
 
     async def connect(self):
         connection = FCMXMPPConnection(
@@ -232,9 +231,3 @@ class FCMConnectionPool:
             except Exception as e:
                 logger.error('Could not send message %s: %s',
                              message.message_id, e)
-
-    def exception_handler(self, _, context):
-        exc = context.get('exception')
-        # See https://github.com/horazont/aioopenssl/issues/2
-        if not isinstance(exc, OpenSSL.SSL.SysCallError):
-            logger.exception(exc)
