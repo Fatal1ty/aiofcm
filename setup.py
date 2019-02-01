@@ -26,6 +26,6 @@ setup(
     url='https://github.com/Fatal1ty/aiofcm',
     packages=find_packages(exclude=('tests',)),
     install_requires=[
-        'aioxmpp~=0.10.0',
+        'aioxmpp~=0.10',
     ]
 )
