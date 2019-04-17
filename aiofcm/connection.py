@@ -54,6 +54,9 @@ class FCMXMPPConnection:
         self.xmpp_client.on_stream_destroyed.connect(
             self._on_stream_destroyed
         )
+        self.xmpp_client.on_failure.connect(
+            lambda exc: self._wait_connection.set_exception(exc)
+        )
         self.xmpp_client.start()
 
         await self._wait_connection
@@ -197,7 +200,12 @@ class FCMConnectionPool:
                     self._lock.release()
                     return connection
             if len(self.connections) < self.max_connections:
-                connection = await self.connect()
+                try:
+                    connection = await self.connect()
+                except Exception as e:
+                    logger.error('Could not connect to server: %s', e)
+                    self._lock.release()
+                    raise ConnectionError
                 self.connections.append(connection)
                 self._lock.release()
                 return connection
@@ -219,7 +227,13 @@ class FCMConnectionPool:
                                message.message_id, attempt)
             logger.debug('Message %s: waiting for connection',
                          message.message_id)
-            connection = await self.acquire()
+            try:
+                connection = await self.acquire()
+            except ConnectionError:
+                logger.warning('Could not send notification %s due to '
+                               'connection problem', message.message_id)
+                await asyncio.sleep(1)
+                continue
             logger.debug('Message %s: connection %s acquired',
                          message.message_id, connection)
             try:
