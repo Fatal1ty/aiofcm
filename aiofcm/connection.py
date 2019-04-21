@@ -4,6 +4,7 @@ import asyncio
 import aioxmpp
 import aioxmpp.connector
 import aioxmpp.xso
+import OpenSSL
 
 from aiofcm.logging import logger
 from aiofcm.common import MessageResponse, STATUS_SUCCESS
@@ -163,6 +164,8 @@ class FCMConnectionPool:
         self.connections = []
         self._lock = asyncio.Lock(loop=self.loop)
 
+        self.loop.set_exception_handler(self.__exception_handler)
+
     async def connect(self):
         connection = FCMXMPPConnection(
             sender_id=self.sender_id,
@@ -245,3 +248,9 @@ class FCMConnectionPool:
             except Exception as e:
                 logger.error('Could not send message %s: %s',
                              message.message_id, e)
+
+    @staticmethod
+    def __exception_handler(_, context):
+        exc = context.get('exception')
+        if not isinstance(exc, OpenSSL.SSL.SysCallError):
+            logger.exception(exc)
