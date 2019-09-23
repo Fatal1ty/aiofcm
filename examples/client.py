@@ -19,7 +19,7 @@ if __name__ == '__main__':
     setup_logger('DEBUG')
 
     device_token = '<DEVICE_TOKEN>'
-    sender_id = '<NUMERICAL_SENDER_ID>'
+    sender_id = 123456789000
     api_key = '<API_KEY>'
 
     notification = {

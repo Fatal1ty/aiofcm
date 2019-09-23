@@ -1,4 +1,5 @@
 from uuid import uuid4
+from typing import Optional, Dict, Any, NoReturn
 
 
 PRIORITY_NORMAL = 'normal'
@@ -11,9 +12,16 @@ class Message:
     __slots__ = ('device_token', 'notification', 'data', 'priority',
                  'message_id', 'time_to_live', 'collapse_key')
 
-    def __init__(self, device_token, notification=None, data=None,
-                 priority=None, message_id=None, time_to_live=None,
-                 collapse_key=None):
+    def __init__(
+            self,
+            device_token: str,
+            notification: Optional[Dict[str, Any]] = None,
+            data: Optional[Dict[str, Any]] = None,
+            priority: Optional[str] = None,
+            message_id: Optional[str] = None,
+            time_to_live: Optional[int] = None,
+            collapse_key: Optional[str] = None):
+
         self.device_token = device_token
         self.notification = notification
         self.data = data
@@ -22,7 +30,7 @@ class Message:
         self.time_to_live = time_to_live
         self.collapse_key = collapse_key
 
-    def as_dict(self):
+    def as_dict(self) -> Dict[str, Any]:
         result = dict(
             message_id=self.message_id,
             to=self.device_token,
@@ -41,6 +49,7 @@ class MessageResponse:
     __slots__ = ('message_id', 'status', 'description')
 
     def __init__(self, message_id, status, description=None):
+        # type: (str, str, Optional[str]) -> NoReturn
         self.message_id = message_id
         self.status = status
         self.description = description

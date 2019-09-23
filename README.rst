@@ -59,7 +59,7 @@ Basic Usage
 
 
     async def run():
-        fcm = FCM('<NUMERICAL_SENDER_ID>', '<API_KEY>')
+        fcm = FCM(123456789000, '<API_KEY>')
         message = Message(
             device_token='<DEVICE_TOKEN>',
             notification={           # optional

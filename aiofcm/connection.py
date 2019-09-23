@@ -1,5 +1,6 @@
 import json
 import asyncio
+from typing import Optional, NoReturn
 
 import aioxmpp
 import aioxmpp.connector
@@ -7,7 +8,7 @@ import aioxmpp.xso
 import OpenSSL
 
 from aiofcm.logging import logger
-from aiofcm.common import MessageResponse, STATUS_SUCCESS
+from aiofcm.common import Message, MessageResponse, STATUS_SUCCESS
 from aiofcm.exceptions import ConnectionClosed
 
 
@@ -29,10 +30,17 @@ class FCMXMPPConnection:
     FCM_PORT = 5235
     INACTIVITY_TIME = 10
 
-    def __init__(self, sender_id, api_key, loop=None, max_requests=1000,
-                 on_connection_lost=None):
+    def __init__(self, sender_id, api_key, loop=None, max_requests=1000):
         self.max_requests = max_requests
-        self.xmpp_client = aioxmpp.Client(
+        self.xmpp_client = self._create_client(sender_id, api_key, loop)
+        self.loop = loop
+        self._wait_connection = asyncio.Future()
+        self.inactivity_timer = None
+
+        self.requests = {}
+
+    def _create_client(self, sender_id, api_key, loop=None) -> aioxmpp.Client:
+        xmpp_client = aioxmpp.Client(
             local_jid=aioxmpp.JID.fromstr('%s@gcm.googleapis.com' % sender_id),
             security_layer=aioxmpp.make_security_layer(api_key),
             override_peer=[
@@ -41,31 +49,29 @@ class FCMXMPPConnection:
             ],
             loop=loop
         )
-        self.loop = loop
-        self.on_connection_lost = on_connection_lost
-        self._wait_connection = asyncio.Future()
-        self.inactivity_timer = None
-
-        self.requests = {}
-
-    async def connect(self):
-        self.xmpp_client.on_stream_established.connect(
+        xmpp_client.on_stream_established.connect(
             lambda: self._wait_connection.set_result(True)
         )
-        self.xmpp_client.on_stream_destroyed.connect(
+        xmpp_client.on_stream_destroyed.connect(
             self._on_stream_destroyed
         )
-        self.xmpp_client.on_failure.connect(
+        xmpp_client.on_failure.connect(
             lambda exc: self._wait_connection.set_exception(exc)
         )
-        self.xmpp_client.start()
-
-        await self._wait_connection
-        self.xmpp_client.stream.register_message_callback(
+        xmpp_client.stream.register_message_callback(
             type_=aioxmpp.MessageType.NORMAL,
             from_=None,
             cb=self.on_response
         )
+        return xmpp_client
+
+    @property
+    def connected(self):
+        return self.xmpp_client.running
+
+    async def connect(self):
+        self.xmpp_client.start()
+        await self._wait_connection
         self.refresh_inactivity_timer()
 
     def close(self):
@@ -76,14 +82,11 @@ class FCMXMPPConnection:
 
     def _on_stream_destroyed(self, reason=None):
         reason = reason or ConnectionClosed()
-        logger.debug('Stream of %s destroyed: %s', self, reason)
+        logger.debug('Stream of %s was destroyed: %s', self, reason)
         self.xmpp_client.stop()
 
         if self.inactivity_timer:
             self.inactivity_timer.cancel()
-
-        if self.on_connection_lost:
-            self.on_connection_lost(self)
 
         for request in self.requests.values():
             if not request.done():
@@ -119,6 +122,8 @@ class FCMXMPPConnection:
             request.set_result(result)
 
     async def send_message(self, message):
+        if not self.connected:
+            await self.connect()
         msg = aioxmpp.Message(
             type_=aioxmpp.MessageType.NORMAL
         )
@@ -157,6 +162,7 @@ class FCMConnectionPool:
     MAX_ATTEMPTS = 10
 
     def __init__(self, sender_id, api_key, max_connections=10, loop=None):
+        # type: (int, str, int, Optional[asyncio.AbstractEventLoop]) -> NoReturn
         self.sender_id = sender_id
         self.api_key = api_key
         self.max_connections = max_connections
@@ -166,12 +172,11 @@ class FCMConnectionPool:
 
         self.loop.set_exception_handler(self.__exception_handler)
 
-    async def connect(self):
+    async def connect(self) -> FCMXMPPConnection:
         connection = FCMXMPPConnection(
             sender_id=self.sender_id,
             api_key=self.api_key,
             loop=self.loop,
-            on_connection_lost=self.discard_connection
         )
         await connection.connect()
         logger.info('Connection established (total: %d)',
@@ -186,13 +191,7 @@ class FCMConnectionPool:
         connection = await self.connect()
         self.connections.append(connection)
 
-    def discard_connection(self, connection):
-        logger.debug('Connection %s discarded', connection)
-        self.connections.remove(connection)
-        logger.info('Connection released (total: %d)',
-                    len(self.connections))
-
-    async def acquire(self):
+    async def acquire(self) -> FCMXMPPConnection:
         for connection in self.connections:
             if not connection.is_busy:
                 return connection
@@ -214,14 +213,13 @@ class FCMConnectionPool:
                 return connection
             else:
                 self._lock.release()
-                logger.warning('Pool is busy, wait...')
                 while True:
                     await asyncio.sleep(0.01)
                     for connection in self.connections:
                         if not connection.is_busy:
                             return connection
 
-    async def send_message(self, message):
+    async def send_message(self, message: Message) -> MessageResponse:
         attempt = 0
         while True:
             attempt += 1
