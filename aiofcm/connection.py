@@ -30,7 +30,8 @@ class FCMXMPPConnection:
     FCM_PORT = 5235
     INACTIVITY_TIME = 10
 
-    def __init__(self, sender_id, api_key, loop=None, max_requests=1000):
+    def __init__(self, sender_id, api_key, callback=None, loop=None, max_requests=1000):
+        self.callback = callback
         self.max_requests = max_requests
         self.xmpp_client = self._create_client(sender_id, api_key, loop)
         self.loop = loop
@@ -97,11 +98,25 @@ class FCMXMPPConnection:
 
         body = json.loads(message.fcm_payload.text)
 
+        handle_upstream = False
         try:
             message_id = body['message_id']
             message_type = body['message_type']
         except KeyError:
-            logger.warning('Got strange response: %s', body)
+            try:
+                message_id = body['message_id']
+                category = body['category']
+                device_token = body['from']
+                data = body['data']
+                handle_upstream = True
+            except KeyError:
+                logger.warning('Got strange response: %s', body)
+                return
+
+        if handle_upstream:
+            asyncio.ensure_future(self.send_ack(device_token, message_id))
+            if self.callback is not None:
+                asyncio.ensure_future(self.callback(device_token, category, data))
             return
 
         if message_type not in (FCMMessageType.ACK, FCMMessageType.NACK):
@@ -138,6 +153,7 @@ class FCMXMPPConnection:
         self.requests[message.message_id] = future_response
 
         self.refresh_inactivity_timer()
+
         try:
             await self.xmpp_client.stream.send(msg)
         except Exception:
@@ -146,6 +162,25 @@ class FCMXMPPConnection:
 
         response = await future_response
         return response
+
+    async def send_ack(self, device_token, message_id):
+        if not self.connected:
+            await self.connect()
+        msg = aioxmpp.Message(
+            type_=aioxmpp.MessageType.NORMAL
+        )
+        payload = FCMMessage()
+
+        payload_body = {"to":str(device_token), "message_id":str(message_id), "message_type":"ack"}
+
+        payload.text = json.dumps(payload_body)
+        msg.fcm_payload = payload
+
+        try:
+            await self.xmpp_client.stream.send(msg)
+        except Exception:
+            self.requests.pop(message.message_id)
+            raise
 
     def refresh_inactivity_timer(self):
         if self.inactivity_timer:
@@ -161,10 +196,11 @@ class FCMXMPPConnection:
 class FCMConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, sender_id, api_key, max_connections=10, loop=None):
+    def __init__(self, sender_id, api_key, callback=None, max_connections=10, loop=None):
         # type: (int, str, int, Optional[asyncio.AbstractEventLoop]) -> NoReturn
         self.sender_id = sender_id
         self.api_key = api_key
+        self.callback = callback
         self.max_connections = max_connections
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
@@ -176,6 +212,7 @@ class FCMConnectionPool:
         connection = FCMXMPPConnection(
             sender_id=self.sender_id,
             api_key=self.api_key,
+            callback=self.callback,
             loop=self.loop,
         )
         await connection.connect()
