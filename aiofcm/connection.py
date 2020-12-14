@@ -153,7 +153,6 @@ class FCMXMPPConnection:
         self.requests[message.message_id] = future_response
 
         self.refresh_inactivity_timer()
-
         try:
             await self.xmpp_client.stream.send(msg)
         except Exception:
@@ -177,7 +176,6 @@ class FCMXMPPConnection:
         msg.fcm_payload = payload
 
         self.refresh_inactivity_timer()
-
         try:
             await self.xmpp_client.stream.send(msg)
         except Exception:

@@ -7,7 +7,7 @@ from aiofcm import FCM, Message, PRIORITY_HIGH
 
 # Send and receive firebase messages from cloud to device
 # This example:
-# 1. Sends a timestamp every 30 seconds to a subscribed device
+# 1. Sends a timestamp every 5 seconds to a subscribed device
 # 2. Echo back an uppercase of the 'txt' field in the data
 
 
