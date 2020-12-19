@@ -180,11 +180,7 @@ class FCMXMPPConnection:
         msg.fcm_payload = payload
 
         self.refresh_inactivity_timer()
-        try:
-            await self.xmpp_client.stream.send(msg)
-        except Exception:
-            self.requests.pop(message.message_id)
-            raise
+        await self.xmpp_client.stream.send(msg)
 
     def refresh_inactivity_timer(self):
         if self.inactivity_timer:
