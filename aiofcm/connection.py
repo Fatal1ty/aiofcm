@@ -30,9 +30,9 @@ class FCMXMPPConnection:
     FCM_PORT = 5235
     INACTIVITY_TIME = 10
 
-    def __init__(self, sender_id, api_key, callback=None, loop=None,
+    def __init__(self, sender_id, api_key, upstream_callback=None, loop=None,
                  max_requests=1000):
-        self.callback = callback
+        self.upstream_callback = upstream_callback
         self.max_requests = max_requests
         self.xmpp_client = self._create_client(sender_id, api_key, loop)
         self.loop = loop
@@ -116,9 +116,9 @@ class FCMXMPPConnection:
 
         if handle_upstream:
             asyncio.ensure_future(self.send_ack(device_token, message_id))
-            if self.callback is not None:
-                asyncio.ensure_future(self.callback(device_token,
-                                                    category, data))
+            if self.upstream_callback is not None:
+                asyncio.ensure_future(self.upstream_callback(device_token,
+                                                             category, data))
             return
 
         if message_type not in (FCMMessageType.ACK, FCMMessageType.NACK):
@@ -200,13 +200,13 @@ class FCMXMPPConnection:
 class FCMConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, sender_id, api_key, callback=None, min_connections=0,
-                 max_connections=10, loop=None):
+    def __init__(self, sender_id, api_key, upstream_callback=None,
+                 min_connections=0, max_connections=10, loop=None):
         # type: (int, str, callback, int, int,
         #        Optional[asyncio.AbstractEventLoop]) -> NoReturn
         self.sender_id = sender_id
         self.api_key = api_key
-        self.callback = callback
+        self.upstream_callback = upstream_callback
         if min_connections > max_connections:
             raise ValueError("min_connections is greater than max_connections")
         self.min_connections = min_connections
@@ -223,7 +223,7 @@ class FCMConnectionPool:
         connection = FCMXMPPConnection(
             sender_id=self.sender_id,
             api_key=self.api_key,
-            callback=self.callback,
+            upstream_callback=self.upstream_callback,
             loop=self.loop,
         )
         await connection.connect()

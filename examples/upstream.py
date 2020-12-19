@@ -63,7 +63,7 @@ async def run():
         await asyncio.sleep(5)
 
 
-fcm = FCM(SENDER_ID, API_KEY, callback=my_callback)
+fcm = FCM(SENDER_ID, API_KEY, upstream_callback=my_callback)
 loop = asyncio.get_event_loop()
 asyncio.ensure_future(run())
 loop.run_forever()
