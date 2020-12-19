@@ -217,7 +217,7 @@ class FCMConnectionPool:
 
         self.loop.set_exception_handler(self.__exception_handler)
 
-        asyncio.ensure_future(self.maintain_min_connections_open())
+        self.maintain_connections_task = asyncio.ensure_future(self.maintain_min_connections_open())
 
     async def connect(self) -> FCMXMPPConnection:
         connection = FCMXMPPConnection(
@@ -232,6 +232,9 @@ class FCMConnectionPool:
         return connection
 
     def close(self):
+        if self.maintain_connections_task:
+            self.maintain_connections_task.cancel()
+        self.maintain_connections_task = None
         for connection in self.connections:
             connection.close()
 
@@ -296,7 +299,7 @@ class FCMConnectionPool:
                              message.message_id, e)
 
     async def maintain_min_connections_open(self):
-        while True:
+        while self.maintain_connections_task:
             missing_connections = max(0, self.min_connections
                                       - len(self.connections))
             if missing_connections > 0:
@@ -307,8 +310,9 @@ class FCMConnectionPool:
 
             await asyncio.sleep(1)
 
-            for connection in self.connections[-missing_connections:]:
-                connection.refresh_inactivity_timer()
+            if self.maintain_connections_task:
+                for connection in self.connections[-missing_connections:]:
+                    connection.refresh_inactivity_timer()
 
     @staticmethod
     def __exception_handler(_, context):
