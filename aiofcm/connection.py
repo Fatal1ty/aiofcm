@@ -300,8 +300,8 @@ class FCMConnectionPool:
             missing_connections = max(0, self.min_connections
                                       - len(self.connections))
             if missing_connections > 0:
-                logger.debug('Creating %d missing connections'
-                             % missing_connections)
+                logger.debug('Creating %d missing connections',
+                             missing_connections)
                 for _ in range(missing_connections):
                     asyncio.ensure_future(self.acquire())
 
