@@ -213,7 +213,10 @@ class FCMConnectionPool:
 
         self.loop.set_exception_handler(self.__exception_handler)
 
-        self.maintain_connections_task = asyncio.ensure_future(self.maintain_min_connections_open())
+        if min_connections == 0:
+            self.maintain_connections_task = None
+        else:
+            self.maintain_connections_task = asyncio.ensure_future(self.maintain_min_connections_open())
 
     async def connect(self) -> FCMXMPPConnection:
         connection = FCMXMPPConnection(
