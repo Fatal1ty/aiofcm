@@ -7,12 +7,15 @@ from aiofcm.logging import logger
 
 
 class FCM:
-    def __init__(self, sender_id, api_key, callback=None, min_connections=None, max_connections=10, loop=None):
+    def __init__(self, sender_id, api_key, callback=None,
+                 min_connections=None, max_connections=10, loop=None):
         if min_connections is None:
             min_connections = 1 if callback else 0
 
-        # type: (int, str, int, Optional[asyncio.AbstractEventLoop]) -> NoReturn
-        self.pool = FCMConnectionPool(sender_id, api_key, callback, min_connections, max_connections, loop)
+        # type: (int, str, callback, int int,
+        #        Optional[asyncio.AbstractEventLoop]) -> NoReturn
+        self.pool = FCMConnectionPool(sender_id, api_key, callback,
+                                      min_connections, max_connections, loop)
 
     async def send_message(self, message: Message) -> MessageResponse:
         response = await self.pool.send_message(message)

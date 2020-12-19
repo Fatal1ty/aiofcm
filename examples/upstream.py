@@ -11,8 +11,8 @@ from aiofcm import FCM, Message, PRIORITY_HIGH
 # 2. Echo back an uppercase of the 'txt' field in the data
 
 
-API_KEY = ... #String
-SENDER_ID = ... #Integer
+API_KEY = ...    # String
+SENDER_ID = ...  # Integer
 
 DEVICE_TOKEN = None
 
@@ -25,14 +25,14 @@ async def my_callback(device_token, app_name, data):
     print("=======================")
 
     txt = data['txt']
-    txt = txt.upper() #Echo back uppercase txt field
+    txt = txt.upper()  # Echo back uppercase txt field
 
     message = Message(
         device_token=device_token,
-        data={"txt":txt},
-        message_id=str(uuid4()), # optional
-        time_to_live=0,          # optional
-        priority=PRIORITY_HIGH,  # optional
+        data={"txt": txt},
+        message_id=str(uuid4()),  # optional
+        time_to_live=0,           # optional
+        priority=PRIORITY_HIGH,   # optional
     )
 
     await fcm.send_message(message)
@@ -52,8 +52,8 @@ async def run():
 
             message = Message(
                 device_token=DEVICE_TOKEN,
-                data={"txt":txt},
-                message_id=str(uuid4()), # optional
+                data={"txt": txt},
+                message_id=str(uuid4()),  # optional
                 time_to_live=0,          # optional
                 priority=PRIORITY_HIGH,  # optional
             )

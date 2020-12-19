@@ -30,7 +30,8 @@ class FCMXMPPConnection:
     FCM_PORT = 5235
     INACTIVITY_TIME = 10
 
-    def __init__(self, sender_id, api_key, callback=None, loop=None, max_requests=1000):
+    def __init__(self, sender_id, api_key, callback=None, loop=None,
+                 max_requests=1000):
         self.callback = callback
         self.max_requests = max_requests
         self.xmpp_client = self._create_client(sender_id, api_key, loop)
@@ -116,7 +117,8 @@ class FCMXMPPConnection:
         if handle_upstream:
             asyncio.ensure_future(self.send_ack(device_token, message_id))
             if self.callback is not None:
-                asyncio.ensure_future(self.callback(device_token, category, data))
+                asyncio.ensure_future(self.callback(device_token,
+                                                    category, data))
             return
 
         if message_type not in (FCMMessageType.ACK, FCMMessageType.NACK):
@@ -170,7 +172,9 @@ class FCMXMPPConnection:
         )
         payload = FCMMessage()
 
-        payload_body = {"to":str(device_token), "message_id":str(message_id), "message_type":"ack"}
+        payload_body = {"to": str(device_token),
+                        "message_id": str(message_id),
+                        "message_type": "ack"}
 
         payload.text = json.dumps(payload_body)
         msg.fcm_payload = payload
@@ -196,8 +200,10 @@ class FCMXMPPConnection:
 class FCMConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, sender_id, api_key, callback=None, min_connections=0, max_connections=10, loop=None):
-        # type: (int, str, int, Optional[asyncio.AbstractEventLoop]) -> NoReturn
+    def __init__(self, sender_id, api_key, callback=None, min_connections=0,
+                 max_connections=10, loop=None):
+        # type: (int, str, callback, int, int,
+        #        Optional[asyncio.AbstractEventLoop]) -> NoReturn
         self.sender_id = sender_id
         self.api_key = api_key
         self.callback = callback
@@ -290,9 +296,11 @@ class FCMConnectionPool:
 
     async def maintain_min_connections_open(self):
         while True:
-            missing_connections = max(0, self.min_connections - len(self.connections))
+            missing_connections = max(0, self.min_connections
+                                      - len(self.connections))
             if missing_connections > 0:
-                logger.debug('Creating %d missing connections' % missing_connections)
+                logger.debug('Creating %d missing connections'
+                             % missing_connections)
                 for _ in range(missing_connections):
                     asyncio.ensure_future(self.acquire())
 
