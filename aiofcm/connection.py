@@ -207,7 +207,8 @@ class FCMConnectionPool:
         self.sender_id = sender_id
         self.api_key = api_key
         self.callback = callback
-        assert min_connections <= max_connections, "min_connections is greater than max_connections"
+        if min_connections > max_connections:
+            raise ValueError("min_connections is greater than max_connections")
         self.min_connections = min_connections
         self.max_connections = max_connections
         self.loop = loop or asyncio.get_event_loop()
