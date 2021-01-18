@@ -38,6 +38,7 @@ class FCMXMPPConnection:
         self.loop = loop
         self._wait_connection = asyncio.Future()
         self.inactivity_timer = None
+        self.stream_destroyed = False
 
         self.requests = {}
 
@@ -93,6 +94,8 @@ class FCMXMPPConnection:
         for request in self.requests.values():
             if not request.done():
                 request.set_exception(reason)
+
+        self.stream_destroyed = True
 
     def on_response(self, message):
         self.refresh_inactivity_timer()
@@ -299,6 +302,8 @@ class FCMConnectionPool:
 
     async def maintain_min_connections_open(self):
         while self.maintain_connections_task:
+            self.connections = [connection for connection in self.connections if not connection.stream_destroyed]
+
             missing_connections = max(0, self.min_connections
                                       - len(self.connections))
             if missing_connections > 0:
