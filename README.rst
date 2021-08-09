@@ -67,10 +67,10 @@ Basic Usage
                 "body": "This is notification",
                 "sound": "default"
             },
-            data={"score": "3x1"},   # optional
-            message_id=str(uuid4())  # optional
-            time_to_live=3,          # optional
-            priority=PRIORITY_HIGH,  # optional
+            data={"score": "3x1"},    # optional
+            message_id=str(uuid4()),  # optional
+            time_to_live=3,           # optional
+            priority=PRIORITY_HIGH,   # optional
         )
         await fcm.send_message(message)
 
