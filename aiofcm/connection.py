@@ -31,12 +31,15 @@ class FCMXMPPConnection:
     FCM_PORT = 5235
     INACTIVITY_TIME = 10
 
-    def __init__(self, sender_id, api_key, loop=None, max_requests=1000):
+    def __init__(self, sender_id, api_key, upstream_callback=None, loop=None,
+                 max_requests=1000):
+        self.upstream_callback = upstream_callback
         self.max_requests = max_requests
         self.xmpp_client = self._create_client(sender_id, api_key, loop)
         self.loop = loop
         self._wait_connection = asyncio.Future()
         self.inactivity_timer = None
+        self.stream_destroyed = False
 
         self.requests = {}
 
@@ -93,16 +96,33 @@ class FCMXMPPConnection:
             if not request.done():
                 request.set_exception(reason)
 
+        self.stream_destroyed = True
+
     def on_response(self, message):
         self.refresh_inactivity_timer()
 
         body = json.loads(message.fcm_payload.text)
 
+        handle_upstream = False
         try:
             message_id = body['message_id']
             message_type = body['message_type']
         except KeyError:
-            logger.warning('Got strange response: %s', body)
+            try:
+                message_id = body['message_id']
+                category = body['category']
+                device_token = body['from']
+                data = body['data']
+                handle_upstream = True
+            except KeyError:
+                logger.warning('Got strange response: %s', body)
+                return
+
+        if handle_upstream:
+            asyncio.ensure_future(self.send_ack(device_token, message_id))
+            if self.upstream_callback is not None:
+                asyncio.ensure_future(self.upstream_callback(device_token,
+                                                             category, data))
             return
 
         if message_type not in (FCMMessageType.ACK, FCMMessageType.NACK):
@@ -148,6 +168,24 @@ class FCMXMPPConnection:
         response = await future_response
         return response
 
+    async def send_ack(self, device_token, message_id):
+        if not self.connected:
+            await self.connect()
+        msg = aioxmpp.Message(
+            type_=aioxmpp.MessageType.NORMAL
+        )
+        payload = FCMMessage()
+
+        payload_body = {"to": str(device_token),
+                        "message_id": str(message_id),
+                        "message_type": "ack"}
+
+        payload.text = json.dumps(payload_body)
+        msg.fcm_payload = payload
+
+        self.refresh_inactivity_timer()
+        await self.xmpp_client.stream.send(msg)
+
     def refresh_inactivity_timer(self):
         if self.inactivity_timer:
             self.inactivity_timer.cancel()
@@ -162,10 +200,16 @@ class FCMXMPPConnection:
 class FCMConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, sender_id, api_key, max_connections=10, loop=None):
-        # type: (int, str, int, Optional[asyncio.AbstractEventLoop]) -> NoReturn
+    def __init__(self, sender_id, api_key, upstream_callback=None,
+                 min_connections=0, max_connections=10, loop=None):
+        # type: (int, str, callback, int, int,
+        #        Optional[asyncio.AbstractEventLoop]) -> NoReturn
         self.sender_id = sender_id
         self.api_key = api_key
+        self.upstream_callback = upstream_callback
+        if min_connections > max_connections:
+            raise ValueError("min_connections is greater than max_connections")
+        self.min_connections = min_connections
         self.max_connections = max_connections
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
@@ -177,10 +221,16 @@ class FCMConnectionPool:
 
         self.loop.set_exception_handler(self.__exception_handler)
 
+        if min_connections == 0:
+            self.maintain_connections_task = None
+        else:
+            self.maintain_connections_task = asyncio.ensure_future(self.maintain_min_connections_open())
+
     async def connect(self) -> FCMXMPPConnection:
         connection = FCMXMPPConnection(
             sender_id=self.sender_id,
             api_key=self.api_key,
+            upstream_callback=self.upstream_callback,
             loop=self.loop,
         )
         await connection.connect()
@@ -189,6 +239,9 @@ class FCMConnectionPool:
         return connection
 
     def close(self):
+        if self.maintain_connections_task:
+            self.maintain_connections_task.cancel()
+        self.maintain_connections_task = None
         for connection in self.connections:
             connection.close()
 
@@ -251,6 +304,24 @@ class FCMConnectionPool:
             except Exception as e:
                 logger.error('Could not send message %s: %s',
                              message.message_id, e)
+
+    async def maintain_min_connections_open(self):
+        while self.maintain_connections_task:
+            self.connections = [connection for connection in self.connections if not connection.stream_destroyed]
+
+            missing_connections = max(0, self.min_connections
+                                      - len(self.connections))
+            if missing_connections > 0:
+                logger.debug('Creating %d missing connections',
+                             missing_connections)
+                for _ in range(missing_connections):
+                    asyncio.ensure_future(self.acquire())
+
+            await asyncio.sleep(1)
+
+            if self.maintain_connections_task:
+                for connection in self.connections[-missing_connections:]:
+                    connection.refresh_inactivity_timer()
 
     @staticmethod
     def __exception_handler(_, context):
