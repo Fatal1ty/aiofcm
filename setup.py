@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aiofcm',
-    version='1.3',
+    version='1.3.1',
     description='An efficient Firebase Cloud Messaging Client Library '
                 'for Python/asyncio',
     long_description=open('README.rst').read(),
@@ -19,6 +19,10 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Development Status :: 5 - Production/Stable',
     ],
     license='Apache License, Version 2.0',
@@ -27,6 +31,6 @@ setup(
     url='https://github.com/Fatal1ty/aiofcm',
     packages=find_packages(exclude=('tests',)),
     install_requires=[
-        'aioxmpp~=0.10',
+        'aioxmpp>=0.10',
     ]
 )
