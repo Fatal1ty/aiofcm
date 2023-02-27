@@ -4,10 +4,6 @@ aiofcm - An efficient Firebase Cloud Messaging Client Library for Python/asyncio
 .. image:: https://travis-ci.org/Fatal1ty/aiofcm.svg?branch=master
     :target: https://travis-ci.org/Fatal1ty/aiofcm
 
-.. image:: https://requires.io/github/Fatal1ty/aiofcm/requirements.svg?branch=master
-    :target: https://requires.io/github/Fatal1ty/aiofcm/requirements/?branch=master
-    :alt: Requirements Status
-
 .. image:: https://img.shields.io/pypi/v/aiofcm.svg
     :target: https://pypi.python.org/pypi/aiofcm
 
