@@ -10,7 +10,7 @@ import OpenSSL
 
 from aiofcm.logging import logger
 from aiofcm.common import Message, MessageResponse, STATUS_SUCCESS
-from aiofcm.exceptions import ConnectionClosed
+from aiofcm.exceptions import ConnectionClosed, ConnectionError
 
 
 class FCMMessage(aioxmpp.xso.XSO):
@@ -160,13 +160,12 @@ class FCMXMPPConnection:
 
 
 class FCMConnectionPool:
-    MAX_ATTEMPTS = 10
-
-    def __init__(self, sender_id, api_key, max_connections=10, loop=None):
-        # type: (int, str, int, Optional[asyncio.AbstractEventLoop]) -> NoReturn
+    def __init__(self, sender_id, api_key, max_connections=10, max_connection_attempts=None, loop=None):
+        # type: (int, str, int, Optional[int], Optional[asyncio.AbstractEventLoop]) -> NoReturn
         self.sender_id = sender_id
         self.api_key = api_key
         self.max_connections = max_connections
+        self.max_connection_attempts = max_connection_attempts
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
         # Python 3.10+ does not use the "loop" parameter
@@ -225,19 +224,23 @@ class FCMConnectionPool:
                             return connection
 
     async def send_message(self, message: Message) -> MessageResponse:
-        attempt = 0
+        failed_attempts = 0
         while True:
-            attempt += 1
-            if attempt > self.MAX_ATTEMPTS:
-                logger.warning('Trying to send message %s: attempt #%s',
-                               message.message_id, attempt)
             logger.debug('Message %s: waiting for connection',
                          message.message_id)
             try:
                 connection = await self.acquire()
             except ConnectionError:
+                failed_attempts += 1
                 logger.warning('Could not send notification %s due to '
                                'connection problem', message.message_id)
+
+                if self.max_connection_attempts is not None \
+                        and failed_attempts > self.max_connection_attempts:
+                    logger.error('Failed to connect after %d attempts.',
+                                 failed_attempts)
+                    raise
+
                 await asyncio.sleep(1)
                 continue
             logger.debug('Message %s: connection %s acquired',
