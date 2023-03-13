@@ -9,23 +9,23 @@ from aiofcm import FCM, Message
 def setup_logger(log_level):
     log_level = getattr(logging, log_level)
     logging.basicConfig(
-        format='[%(asctime)s] %(levelname)8s %(module)6s:%(lineno)03d %(message)s',
-        level=log_level
+        format="[%(asctime)s] %(levelname)8s %(module)6s:%(lineno)03d %(message)s",
+        level=log_level,
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    setup_logger('DEBUG')
+    setup_logger("DEBUG")
 
-    device_token = '<DEVICE_TOKEN>'
+    device_token = "<DEVICE_TOKEN>"
     sender_id = 123456789000
-    api_key = '<API_KEY>'
+    api_key = "<API_KEY>"
 
     notification = {
         "title": "Hello from Firebase",
         "body": "This is notification",
-        "sound": "default"
+        "sound": "default",
     }
 
     fcm = FCM(sender_id, api_key)
@@ -40,10 +40,12 @@ if __name__ == '__main__':
     async def main():
         send_messages = [send_message() for _ in range(1000)]
         import time
+
         t = time.time()
         await asyncio.wait(send_messages)
-        print('Done: %s' % (time.time() - t))
+        print("Done: %s" % (time.time() - t))
         print()
+
     try:
         loop = asyncio.get_event_loop()
         asyncio.ensure_future(main())
