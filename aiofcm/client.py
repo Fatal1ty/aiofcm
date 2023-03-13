@@ -12,9 +12,10 @@ class FCM:
         sender_id: int,
         api_key: str,
         max_connections: int = 10,
+        max_connection_attempts: Optional[int] = None,
         loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
-        self.pool = FCMConnectionPool(sender_id, api_key, max_connections, loop)
+        self.pool = FCMConnectionPool(sender_id, api_key, max_connections, max_connection_attempts, loop)
 
     async def send_message(self, message: Message) -> MessageResponse:
         response = await self.pool.send_message(message)
