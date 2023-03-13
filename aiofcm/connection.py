@@ -31,7 +31,13 @@ class FCMXMPPConnection:
     FCM_PORT = 5235
     INACTIVITY_TIME = 10
 
-    def __init__(self, sender_id, api_key, loop=None, max_requests=1000):
+    def __init__(
+        self,
+        sender_id: int,
+        api_key: str,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+        max_requests: int = 1000
+    ):
         self.max_requests = max_requests
         self.xmpp_client = self._create_client(sender_id, api_key, loop)
         self.loop = loop
@@ -40,7 +46,12 @@ class FCMXMPPConnection:
 
         self.requests = {}
 
-    def _create_client(self, sender_id, api_key, loop=None) -> aioxmpp.Client:
+    def _create_client(
+        self,
+        sender_id: int,
+        api_key: str,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+    ) -> aioxmpp.Client:
         xmpp_client = aioxmpp.Client(
             local_jid=aioxmpp.JID.fromstr('%s@gcm.googleapis.com' % sender_id),
             security_layer=aioxmpp.make_security_layer(api_key),
@@ -67,7 +78,7 @@ class FCMXMPPConnection:
         return xmpp_client
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return self.xmpp_client.running
 
     async def connect(self):
@@ -122,7 +133,7 @@ class FCMXMPPConnection:
             result = MessageResponse(message_id, status, description)
             request.set_result(result)
 
-    async def send_message(self, message):
+    async def send_message(self, message) -> MessageResponse:
         if not self.connected:
             await self.connect()
         msg = aioxmpp.Message(
@@ -155,13 +166,19 @@ class FCMXMPPConnection:
             self.INACTIVITY_TIME, self.close)
 
     @property
-    def is_busy(self):
+    def is_busy(self) -> bool:
         return len(self.requests) >= self.max_requests
 
 
 class FCMConnectionPool:
-    def __init__(self, sender_id, api_key, max_connections=10, max_connection_attempts=None, loop=None):
-        # type: (int, str, int, Optional[int], Optional[asyncio.AbstractEventLoop]) -> NoReturn
+    def __init__(
+        self,
+        sender_id: int,
+        api_key: str,
+        max_connections: int = 10,
+        max_connection_attempts: Optional[int] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+    ):
         self.sender_id = sender_id
         self.api_key = api_key
         self.max_connections = max_connections

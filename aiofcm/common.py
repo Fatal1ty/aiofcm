@@ -48,12 +48,16 @@ class Message:
 class MessageResponse:
     __slots__ = ('message_id', 'status', 'description')
 
-    def __init__(self, message_id, status, description=None):
-        # type: (str, str, Optional[str]) -> NoReturn
+    def __init__(
+        self,
+        message_id: str,
+        status: str,
+        description: Optional[str] = None,
+    ):
         self.message_id = message_id
         self.status = status
         self.description = description
 
     @property
-    def is_successful(self):
+    def is_successful(self) -> bool:
         return self.status == STATUS_SUCCESS
