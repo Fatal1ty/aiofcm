@@ -7,8 +7,8 @@ setup(
     name="aiofcm",
     version="1.3.1",
     description=(
-        "An efficient Firebase Cloud Messaging Client Library "
-        "for Python/asyncio"
+        "An efficient Firebase Cloud Messaging "
+        "Client Library for Python/asyncio"
     ),
     long_description=open("README.rst").read(),
     platforms="all",
